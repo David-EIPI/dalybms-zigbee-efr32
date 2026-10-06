@@ -5,6 +5,7 @@
 #include "sl_power_manager.h"
 #include "nvm3_default.h"
 #include "app_config.h"
+#include "settings.h"
 #include <math.h>
 #include <string.h>
 
@@ -18,7 +19,10 @@ static bool network_loss_active;
 static bool network_reset_pending;
 /* Application-owned NVM3 user-domain key; Zigbee tokens use domain 0x10000. */
 #define LAYOUT_VERSION_KEY 0x0b501UL
-#define LAYOUT_VERSION 0x424d5302UL
+#define LAYOUT_VERSION 0x424d5303UL
+#define INTERVAL_ENDPOINT 1
+#define INTERVAL_CLUSTER 0x000e
+#define INTERVAL_ATTRIBUTE 0x0055
 #define INTERVIEW_TASK 0x10000UL
 #define LEAVE_RETRY_MS 1000UL
 
@@ -165,6 +169,10 @@ void zigbee_init(void)
         app_config_get(APP_CONFIG_ZIGBEE_SECONDARY_MASK), true);
     emberNetworkInit(NULL);
     next_join = halCommonGetInt32uMillisecondTick() + 10000;
+    float interval = settings_interval_s();
+
+    write_value(INTERVAL_ENDPOINT, INTERVAL_CLUSTER, INTERVAL_ATTRIBUTE,
+                &interval, ZCL_FLOAT_SINGLE_ATTRIBUTE_TYPE);
     zigbee_update();
 }
 
@@ -264,19 +272,48 @@ bool emberAfPreCommandReceivedCallback(EmberAfClusterCommand *command)
     return false;
 }
 
-/* This sensor exposes observations; remote writes never control the BMS. */
+/* Identify the sole writable setting, excluding client/manufacturer attributes. */
+static bool is_interval_attribute(uint8_t endpoint, uint16_t cluster,
+                                  uint16_t attribute, uint8_t mask,
+                                  uint16_t manufacturer)
+{
+    return endpoint == INTERVAL_ENDPOINT && cluster == INTERVAL_CLUSTER
+           && attribute == INTERVAL_ATTRIBUTE && mask == CLUSTER_MASK_SERVER
+           && manufacturer == 0;
+}
+
+/* Permit only sampling configuration; remote writes never control the BMS. */
 EmberAfAttributeWritePermission emberAfAllowNetworkWriteAttributeCallback(
     uint8_t endpoint, EmberAfClusterId cluster, EmberAfAttributeId attribute,
     uint8_t mask, uint16_t manufacturer, uint8_t *value, uint8_t type)
 {
-    (void)endpoint;
-    (void)cluster;
-    (void)attribute;
-    (void)mask;
-    (void)manufacturer;
     (void)value;
-    (void)type;
+    if (is_interval_attribute(endpoint, cluster, attribute, mask, manufacturer)
+        && type == ZCL_FLOAT_SINGLE_ATTRIBUTE_TYPE)
+        return EMBER_ZCL_ATTRIBUTE_WRITE_PERMISSION_ALLOW_WRITE_NORMAL;
     return EMBER_ZCL_ATTRIBUTE_WRITE_PERMISSION_DENY_WRITE;
+}
+
+/* Reject bad values or storage failures before acknowledging a setting write. */
+EmberAfStatus emberAfPreAttributeChangeCallback(
+    uint8_t endpoint, EmberAfClusterId cluster, EmberAfAttributeId attribute,
+    uint8_t mask, uint16_t manufacturer, uint8_t type, uint8_t size,
+    uint8_t *value)
+{
+    if (!is_interval_attribute(endpoint, cluster, attribute, mask, manufacturer))
+        return EMBER_ZCL_STATUS_SUCCESS;
+    if (type != ZCL_FLOAT_SINGLE_ATTRIBUTE_TYPE || size != sizeof(float))
+        return EMBER_ZCL_STATUS_INVALID_DATA_TYPE;
+    float seconds;
+
+    memcpy(&seconds, value, sizeof(seconds));
+    if (!settings_interval_valid(seconds))
+        return EMBER_ZCL_STATUS_INVALID_VALUE;
+    if (!settings_set_interval(seconds)) {
+        zigbee_diag.attribute_errors++;
+        return EMBER_ZCL_STATUS_FAILURE;
+    }
+    return EMBER_ZCL_STATUS_SUCCESS;
 }
 
 /* Preserve the SDK's normal radio calibration callback. */

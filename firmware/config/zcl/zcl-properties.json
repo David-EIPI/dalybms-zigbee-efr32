@@ -31,7 +31,8 @@
     "zigbee-direct.xml",
     "zll-devices.xml",
     "zll.xml",
-    "analog-input.xml"
+    "analog-input.xml",
+    "analog-value.xml"
   ],
   "supportCustomZclDevice": true,
   "manufacturersXml": "manufacturers.xml",

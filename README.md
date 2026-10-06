@@ -19,6 +19,7 @@ a zero value is not treated as proof that every BMS implements that function.
 - Pack, charge, discharge, balancer, individual-cell and temperature telemetry.
 - Standard Electrical Measurement, Temperature Measurement, Analog Input and
   Binary Input clusters; no proprietary Zigbee cluster is required.
+- Writable Analog Value update interval in seconds, retained in NVRAM.
 - Basic `ProductLabel` attributes identify each endpoint's physical subject.
 - Persistent binding/reporting configuration and automatic rejoin behavior.
 - Factory reset and fresh network steering after a configurable prolonged loss
@@ -41,16 +42,16 @@ these defaults:
 
 | Setting | Default |
 | --- | --- |
-| USART0 TX | location 1, PA1 |
-| USART0 RX | location 31, PA0 |
+| USART0 TX | location 18, PD10 |
+| USART0 RX | location 19, PD12 |
 | Serial format | 9600 baud, 8N1 |
 | BMS logical address | 1 (`0x81` request, `0x51` reply) |
 | Sampling interval | 30 seconds |
 | Zigbee long poll | 3000 ms |
 | Lost-network reset | 24 hours |
 
-PA1/PA0 is a tested default, not a fixed board requirement. TX and RX are
-independently configurable across all USART0 locations supported by this MCU.
+PD10/PD12 are the image defaults. TX and RX are independently configurable
+across all USART0 locations supported by this MCU.
 For example, location 18/18 selects TX=PD10 and RX=PD11, while location 19/19
 selects TX=PD11 and RX=PD12. The firmware and configuration tool reject pairs
 that resolve to the same physical GPIO.
@@ -91,7 +92,7 @@ The latest build is included as:
 - [results/bms_sensor.bin](results/bms_sensor.bin) — flat binary at address 0.
 - [results/bms_sensor.s37](results/bms_sensor.s37) — Motorola S-record image.
 
-The default image uses PA1 for TX, PA0 for RX and BMS address 1. Customize a copy
+The default image uses PD10 for TX, PD12 for RX and BMS address 1. Customize a copy
 before flashing when different wiring or network settings are required.
 
 With pyOCD and the EFR32MG1B CMSIS pack installed, an ST-Link can program either
@@ -129,10 +130,19 @@ Source responsibilities are separated as follows:
 - `src/bms_metrics*`: BMS register conversion and Zigbee mapping.
 - `src/zigbee.*`: attributes, reporting, joining and network recovery.
 - `src/app_config.*`: validated host-patchable image settings.
+- `src/settings.*`: persisted runtime sampling interval.
 - `src/supply.*`: voltage supervision.
 - `firmware/main.c`: application scheduling.
 
 ## Zigbee operation
+
+Endpoint 1 exposes **Update interval** through Analog Value (Basic) `0x000E`.
+Write `PresentValue` (`0x0055`, single-precision float) with a whole number of
+seconds from 5 to 3600. It starts from the image's `sample_interval_s` on first
+boot, then restores the NVM3 value on subsequent boots and firmware updates.
+Writes are acknowledged only after storage succeeds. An interval change
+reschedules the next sample and lets an active read cycle finish.
+See [CONFIGURATION.md](CONFIGURATION.md#runtime-update-interval) for details.
 
 The device starts network steering ten seconds after boot and retries once per
 minute while unjoined. A successful join allows five minutes for the initial ZHA

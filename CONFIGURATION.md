@@ -6,6 +6,9 @@ its CRC-32, changes requested values, then updates both the table CRC and the
 checksums of affected Motorola S-records. No configuration sector, bootloader
 change, or NVM allocation is required.
 
+The image table defines factory settings. The runtime update interval also has
+an NVM3 override, described below; the other settings remain image-only.
+
 Launch the graphical editor with Python's standard Tk interface:
 
 ```sh
@@ -36,8 +39,8 @@ with the same address and procedure as the normal build output.
 
 | Key | Default | Allowed values |
 | --- | ---: | --- |
-| `serial_tx_location` | 1 (PA1) | USART0 TX location 0 through 31 |
-| `serial_rx_location` | 31 (PA0) | USART0 RX location 0 through 31 |
+| `serial_tx_location` | 18 (PD10) | USART0 TX location 0 through 31 |
+| `serial_rx_location` | 19 (PD12) | USART0 RX location 0 through 31 |
 | `bms_address` | 1 | DALY logical address 1 through 15 |
 | `zigbee_primary_mask` | `0x0318c800` | Bit mask for channels 11 through 26 |
 | `zigbee_secondary_mask` | `0x04e73000` | Bit mask for channels 11 through 26 |
@@ -62,6 +65,7 @@ command line uses the location numbers below:
 | 24–30 | PF0–PF6 | PF1–PF7 |
 | 31 | PF7 | PA0 |
 
+The default TX location 18 and RX location 19 select PD10 and PD12.
 For example, TX location 18 and RX location 18 select PD10 and PD11;
 locations 19 and 19 select PD11 and PD12. Some different location numbers map
 to the same GPIO: TX location 1 and RX location 0 both select PA1. The tool and
@@ -77,6 +81,32 @@ Changing a signed GBL or OTA payload afterward invalidates its signature and
 container integrity checks. An OTA update replaces these image settings with
 the settings embedded in the new application, so configure each upgrade image
 before packaging it.
+
+## Runtime update interval
+
+Endpoint 1 has a standard **Analog Value (Basic)** server cluster (`0x000E`),
+whose Description (`0x001C`) is **Update interval**. Its writable PresentValue
+(`0x0055`) is a ZCL single-precision float (`0x39`) measured in seconds;
+EngineeringUnits (`0x0075`) is 73, and Resolution (`0x006A`) is 1 second.
+
+Use ZHA's device **Manage Zigbee device** attribute editor to write PresentValue
+as a whole number from 5 to 3600. Fractions, NaN, infinities and out-of-range
+values are rejected with `INVALID_VALUE`. All BMS measurement attributes remain
+read-only. Home Assistant may need a fresh device interview to discover the
+added cluster after upgrading existing hardware.
+
+On first boot, the application seeds NVM3 key `0x0B502` from the validated
+`sample_interval_s` image-table value. Later boots restore the saved interval.
+Each accepted change is committed before the Zigbee write is acknowledged;
+a storage failure returns `FAILURE` and leaves the live interval unchanged.
+Writing the current value avoids a redundant flash write. Invalid saved values
+are replaced with the image default; other read errors use the default for the
+current boot without overwriting storage.
+
+Changes reschedule the next sample within one second, allowing any active BMS
+read cycle to finish. A new image's default does not replace an existing NVM3
+override. Network removal and automatic network recovery retain the override;
+erasing application NVRAM restores the image-table default on the next boot.
 
 ## Flashing with ST-Link and pyOCD
 

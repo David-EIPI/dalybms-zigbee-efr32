@@ -19,6 +19,8 @@ source:
 - {path: app.c}
 - {path: ../src/app_config.c}
 - {path: ../src/app_config.h}
+- {path: ../src/settings.c}
+- {path: ../src/settings.h}
 - {path: ../src/bms_protocol.c}
 - {path: ../src/bms_protocol.h}
 - {path: ../src/rs485.c}

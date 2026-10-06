@@ -2,9 +2,11 @@
 
 Manufacturer: DS. Model: bmssensor1. Profile: Home Automation (0x0104).
 All BMS fields are read-only; Binary Input represents observed state, not a control.
+Endpoint 1 additionally exposes writable Analog Value (0x000e) PresentValue (0x0055):
+Update interval in whole seconds (5–3600), persisted in NVM3; EngineeringUnits is 73 (seconds).
 Every endpoint has Basic ProductLabel (0x000e), identifying its electrical/temperature source.
 Analog/Binary Input share endpoints independently and use Description for their field names.
-Analog/Binary Input descriptions are populated (48/16-byte SDK limits).
+Analog/Binary Input and Analog Value descriptions are populated (48/16/48-byte limits).
 Optional/absent measurements retain invalid values.
 
 ## Endpoint labels

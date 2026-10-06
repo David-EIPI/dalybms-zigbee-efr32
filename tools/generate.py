@@ -16,8 +16,9 @@ for file in (SDK/'app/zcl').glob('*.xml'):
             try: clusters[int(c.findtext('code'),16)] = c
             except ValueError: pass
 
-for c in ET.parse(BASE/'firmware/config/zcl/analog-input.xml').getroot().findall('cluster'):
-    clusters[int(c.findtext('code'),16)] = c
+for filename in ('analog-input.xml', 'analog-value.xml'):
+    for c in ET.parse(BASE/'firmware/config/zcl'/filename).getroot().findall('cluster'):
+        clusters[int(c.findtext('code'),16)] = c
 
 def attribute(code, name, dtype, default, report=False, singleton=False):
     return dict(name=name, code=code, mfgCode=None, side='server', type=dtype.lower(),
@@ -33,6 +34,8 @@ def cluster(code, selected):
         if a.get('side') != 'server' or aid not in selected: continue
         value, report = selected[aid]
         attrs.append(attribute(aid,a.text.strip(),a.get('type'),value,report))
+        if code == 0xe:
+            attrs[-1]['writable'] = a.get('writable') == 'true'
     attrs.append(attribute(0xfffd,'cluster revision','int16u','3' if code==0 else '1',singleton=True))
     return dict(name=c.findtext('name'),code=code,mfgCode=None,define=c.findtext('define'),
                 side='server',enabled=1,attributes=attrs,commands=[])
@@ -151,6 +154,9 @@ for original in METRICS:
     rows.append(m)
 for m in rows:
     m['product_label']=endpoint_labels[m['endpoint']]
+endpoints[1].append(cluster(0xe, {
+    0x1c:('Update interval',False), 0x51:(0,False), 0x55:(30,True),
+    0x67:(0,False), 0x6a:(1,False), 0x6f:(0,False), 0x75:(73,False)}))
 for ep, cs in endpoints.items():
     selected={0:(8,False),7:(4,False),0x000e:(endpoint_labels[ep],False)}
     if ep==1:
@@ -168,6 +174,7 @@ for p in z['package']:
 properties=json.loads((SDK/'app/zcl/zcl-zap.json').read_text())
 properties['xmlRoot']=[os.path.relpath(SDK/'app/zcl', BASE/'firmware/config/zcl'), '.']
 properties['xmlFile'].append('analog-input.xml')
+properties['xmlFile'].append('analog-value.xml')
 (BASE/'firmware/config/zcl/zcl-properties.json').write_text(json.dumps(properties,indent=2)+'\n')
 z['endpointTypes']=[]; z['endpoints']=[]
 for ep, cs in sorted(endpoints.items()):
@@ -179,9 +186,11 @@ for ep, cs in sorted(endpoints.items()):
 (BASE/'results/endpoint-map.json').write_text(json.dumps(rows,indent=2)+'\n')
 lines=['# Zigbee endpoint map','','Manufacturer: DS. Model: bmssensor1. Profile: Home Automation (0x0104).',
        'All BMS fields are read-only; Binary Input represents observed state, not a control.',
+       'Endpoint 1 additionally exposes writable Analog Value (0x000e) PresentValue (0x0055):',
+       'Update interval in whole seconds (5–3600), persisted in NVM3; EngineeringUnits is 73 (seconds).',
        'Every endpoint has Basic ProductLabel (0x000e), identifying its electrical/temperature source.',
        'Analog/Binary Input share endpoints independently and use Description for their field names.',
-       'Analog/Binary Input descriptions are populated (48/16-byte SDK limits).',
+       'Analog/Binary Input and Analog Value descriptions are populated (48/16/48-byte limits).',
        'Optional/absent measurements retain invalid values.',
        '', '## Endpoint labels', '', '| Endpoint | ProductLabel |', '|---:|---|']
 for ep, label in sorted(endpoint_labels.items()):

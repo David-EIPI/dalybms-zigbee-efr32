@@ -6,7 +6,7 @@ base=Path(__file__).resolve().parents[1]
 rows=json.loads((base/'results/endpoint-map.json').read_text())
 config=(base/'build/autogen/zap-config.h').read_text()
 expected=len({m['endpoint'] for m in rows})
-for macro,value in [('FIXED_ENDPOINT_COUNT',expected),('EMBER_AF_GENERATED_REPORTING_CONFIG_DEFAULTS_TABLE_SIZE',len(rows))]:
+for macro,value in [('FIXED_ENDPOINT_COUNT',expected),('EMBER_AF_GENERATED_REPORTING_CONFIG_DEFAULTS_TABLE_SIZE',len(rows)+1)]:
     found=re.search(r'#define '+macro+r' \((\d+)\)',config)
     if not found or int(found[1]) != value:
         raise SystemExit(f'{macro}: expected {value}, generated {found[1] if found else "missing"}')
@@ -15,6 +15,13 @@ if 'ANALOG_INPUT_BASIC_CLUSTER' not in (base/'build/autogen/zap-id.h').read_text
 print(f'Generated endpoint/report checks passed: {expected} endpoints, {len(rows)} values')
 
 layout=json.loads((base/'results/attribute-layout.json').read_text())
+setting=next(c for c in layout if c['endpoint']==1 and c['cluster']==0xe)
+assert next(a['default'] for a in setting['attributes'] if a['id']==0x1c)=='Update interval'
+assert next(a['default'] for a in setting['attributes'] if a['id']==0x75)=='73'
+assert [(c['endpoint'],c['cluster'],a['id']) for c in layout for a in c['attributes']
+        if a['writable']]==[(1,0xe,0x55)]
+assert 'ANALOG_VALUE_BASIC_CLUSTER' in (base/'build/autogen/zap-id.h').read_text()
+print('Writable Analog Value interval and seconds units verified')
 for row in rows:
     entry=next(e for e in layout if e['endpoint']==row['endpoint'] and e['cluster']==row['cluster'])
     assert row['attribute'] in entry['attribute_ids']

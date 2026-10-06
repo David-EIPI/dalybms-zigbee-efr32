@@ -12,7 +12,7 @@ slc generate firmware/bms.slcp -np -d build -name=bms_sensor -o makefile > resul
 zap-cli generate -i firmware/config/zcl/zcl_config.zap -z firmware/config/zcl/zcl-properties.json -g "$GSDK/protocol/zigbee/app/framework/gen-template/gen-templates.json" -o build/autogen --packageMatch strict --stateDirectory /tmp/bms-zap-state > results/zap-generation.log 2>&1
 python3 tools/fix_layout.py
 python3 tools/check_generated.py
-cp src/app_config.[ch] src/bms_protocol.[ch] src/rs485.[ch] src/bms_metrics*.[ch] src/zigbee.[ch] src/supply.[ch] firmware/main.c firmware/app.c build/
+cp src/app_config.[ch] src/settings.[ch] src/bms_protocol.[ch] src/rs485.[ch] src/bms_metrics*.[ch] src/zigbee.[ch] src/supply.[ch] firmware/main.c firmware/app.c build/
 make -C build -f bms_sensor.Makefile release ARM_GCC_DIR="$ARM_GCC_DIR" -j4 > results/build.log 2>&1
 arm-none-eabi-size build/build/release/bms_sensor.out > results/size.txt
 cp build/build/release/bms_sensor.s37 results/bms_sensor.s37

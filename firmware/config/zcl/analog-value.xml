@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<configurator>
+  <!-- Standard ZCL Analog Value (Basic), absent from this GSDK's XML catalog. -->
+  <cluster>
+    <name>Analog Value (Basic)</name>
+    <domain>General</domain>
+    <description>Persistent sampling interval configuration.</description>
+    <code>0x000E</code>
+    <define>ANALOG_VALUE_BASIC_CLUSTER</define>
+    <client tick="false" init="false">true</client>
+    <server tick="false" init="false">true</server>
+    <globalAttribute side="either" code="0xFFFD" value="1"/>
+    <attribute side="server" code="0x001C" define="ANALOG_VALUE_DESCRIPTION" type="CHAR_STRING" length="48" writable="false" default="" optional="true">description</attribute>
+    <attribute side="server" code="0x0051" define="ANALOG_VALUE_OUT_OF_SERVICE" type="BOOLEAN" writable="false" default="0" optional="false">out of service</attribute>
+    <attribute side="server" code="0x0055" define="ANALOG_VALUE_PRESENT_VALUE" type="FLOAT_SINGLE" writable="true" reportable="true" default="30" optional="false">present value</attribute>
+    <attribute side="server" code="0x0067" define="ANALOG_VALUE_RELIABILITY" type="ENUM8" writable="false" default="0" optional="true">reliability</attribute>
+    <attribute side="server" code="0x006A" define="ANALOG_VALUE_RESOLUTION" type="FLOAT_SINGLE" writable="false" default="1" optional="true">resolution</attribute>
+    <attribute side="server" code="0x006F" define="ANALOG_VALUE_STATUS_FLAGS" type="BITMAP8" writable="false" reportable="true" default="0" optional="false">status flags</attribute>
+    <attribute side="server" code="0x0075" define="ANALOG_VALUE_ENGINEERING_UNITS" type="ENUM16" writable="false" default="73" optional="true">engineering units</attribute>
+  </cluster>
+</configurator>

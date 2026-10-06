@@ -38,7 +38,7 @@ static const char expected_keys[APP_CONFIG_COUNT][CONFIG_KEY_LENGTH] = {
 };
 
 static const int32_t defaults[APP_CONFIG_COUNT] = {
-    1, 31, 1, 0x0318c800, 0x04e73000, 30, 3000, 24, 1000
+    18, 19, 1, 0x0318c800, 0x04e73000, 30, 3000, 24, 1000
 };
 
 /* Kept in a named section and retained so image tools can find it by marker. */
@@ -48,10 +48,10 @@ static const struct app_config_block flash_config = {
     CONFIG_VERSION,
     sizeof(struct app_config_block),
     APP_CONFIG_COUNT,
-    0xf44243ef,
+    0xbbcefc83,
     {
-        { "serial_tx_location", 1, 0, 31 },
-        { "serial_rx_location", 31, 0, 31 },
+        { "serial_tx_location", 18, 0, 31 },
+        { "serial_rx_location", 19, 0, 31 },
         { "bms_address", 1, 1, 15 },
         { "zigbee_primary_mask", 0x0318c800, 0, ZIGBEE_CHANNEL_MASK },
         { "zigbee_secondary_mask", 0x04e73000, 0, ZIGBEE_CHANNEL_MASK },

@@ -7,25 +7,30 @@
 #include "zigbee.h"
 #include "supply.h"
 #include "app_config.h"
+#include "settings.h"
 
 static sl_zigbee_event_t poll_event;
 static uint8_t group;
 static bool pending;
 static uint32_t next_cycle;
+static uint32_t interval_s;
 
 /* Schedule short RX service intervals and the configured measurement cadence. */
 static void poll_handler(sl_zigbee_event_t *event)
 {
     uint32_t now = halCommonGetInt32uMillisecondTick();
     zigbee_process(now);
+    if (interval_s != settings_interval_s()) {
+        interval_s = settings_interval_s();
+        next_cycle = now + 1000UL * interval_s;
+    }
     if (!pending && group == 0 && (int32_t)(now - next_cycle) < 0) {
         sl_zigbee_event_set_delay_ms(event, 1000);
         return;
     }
     if (!pending) {
         if (group == 0)
-            next_cycle = now + 1000UL
-                         * app_config_get(APP_CONFIG_SAMPLE_INTERVAL_S);
+            next_cycle = now + 1000UL * interval_s;
         rs485_start(group, now);
         pending = true;
     } else if (rs485_process(now)) {
@@ -46,6 +51,9 @@ int main(void)
     sl_system_init();
     supply_init();
     app_config_init();
+    if (!settings_init())
+        zigbee_diag.attribute_errors++;
+    interval_s = settings_interval_s();
     bms_set_address(app_config_get(APP_CONFIG_BMS_ADDRESS));
     rs485_init();
     zigbee_init();

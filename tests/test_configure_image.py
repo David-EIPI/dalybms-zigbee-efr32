@@ -18,8 +18,8 @@ SPEC.loader.exec_module(TOOL)
 
 def default_block():
     entries = (
-        ("serial_tx_location", 1, 0, 31),
-        ("serial_rx_location", 31, 0, 31),
+        ("serial_tx_location", 18, 0, 31),
+        ("serial_rx_location", 19, 0, 31),
         ("bms_address", 1, 1, 15),
         ("zigbee_primary_mask", 0x0318C800, 0, 0x07FFF800),
         ("zigbee_secondary_mask", 0x04E73000, 0, 0x07FFF800),
@@ -76,8 +76,8 @@ class ConfigureImageTests(unittest.TestCase):
             block.set("zigbee_primary_mask", 1)
         self.assertEqual(block.values()["zigbee_primary_mask"], 0x0318C800)
         with self.assertRaises(TOOL.ConfigError):
-            block.set("serial_rx_location", 0)
-        self.assertEqual(block.values()["serial_rx_location"], 31)
+            block.set("serial_rx_location", 17)
+        self.assertEqual(block.values()["serial_rx_location"], 19)
 
     def test_patch_image_writes_separate_output(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -59,8 +59,10 @@ for endpoint in z['endpoints']:
             else:
                 offset=len(defaults); defaults.extend(data)
                 value=f'(uint8_t*)&generatedDefaults[{offset}]'
-            attrs.append(f'{{ 0x{aid:04x}, ZCL_{kind.upper()}_ATTRIBUTE_TYPE, {size_a}, 0, {{ {value} }} }}')
-            attr_info.append(dict(id=aid,offset=size,size=size_a,kind=kind,default=raw))
+            writable = c['code'] == 0xe and aid == 0x55 and a.get('writable', False)
+            mask = 'ATTRIBUTE_MASK_WRITABLE' if writable else '0'
+            attrs.append(f'{{ 0x{aid:04x}, ZCL_{kind.upper()}_ATTRIBUTE_TYPE, {size_a}, {mask}, {{ {value} }} }}')
+            attr_info.append(dict(id=aid,offset=size,size=size_a,kind=kind,default=raw,writable=writable))
             size+=size_a; max_size=max(max_size,size_a); attr_ids.append(aid)
             if a['reportable']:
                 change=int(a['reportableChange'])

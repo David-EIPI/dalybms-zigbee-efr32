@@ -30,7 +30,10 @@ ProductLabel: for example, endpoint 1 contains Pack electrical measurements and
 the separately described `Cell 1 balancing` Binary Input. All 41 Analog Input
 and 57 Binary Input descriptions are nonempty and unique within their cluster
 type. Deliberate abbreviations replace truncated words in Binary Input names.
-There are no output clusters: this application is read-only.
+Analog Value (0x000e) on endpoint 1 uses Description **Update interval** and
+EngineeringUnits **seconds**. Its PresentValue (0x0055) configures the sampling
+cadence and is the only remotely writable attribute. All BMS data remain
+read-only. See [CONFIGURATION.md](CONFIGURATION.md#runtime-update-interval).
 
 Electrical, Analog Input and Binary Input endpoint numbers are unchanged.
 Temperature clusters move from endpoints 1–13 to 16–28 so they have distinct
@@ -41,10 +44,10 @@ when composing Home Assistant entity names.
 
 Fixed ProductLabel strings use their actual encoded length in attribute RAM,
 instead of reserving the maximum 64-byte payload on every endpoint. The standard
-ZCL character-string encoding is retained. This build has 1041 attributes, 183
-cluster instances (57 Basic plus 126 measurement clusters), and 4935 attribute
-RAM bytes. Flash usage is 184516 bytes text plus 972 initialized data; BSS is
-27404 bytes. The 4 KiB stack and minimum 2 KiB heap reservations still fit.
+ZCL character-string encoding is retained. This build has 1049 attributes, 184
+cluster instances (57 Basic, 126 measurement clusters and one Analog Value),
+and 4999 attribute RAM bytes. The 4 KiB stack and minimum 2 KiB heap
+reservations still fit.
 
 ## Upgrade and validation
 
@@ -58,11 +61,16 @@ bindings and reporting entries while preserving network credentials. Default
 reporting entries are then loaded, but coordinator bindings/configuration must
 be recreated by Home Assistant before automatic reports resume. Later boots
 preserve that configuration. The migration marker uses application NVM3 user-domain
-key 0x0b501 with layout value 0x424d5302; no stack keys or credentials are erased.
+key 0x0b501 with layout value 0x424d5303; no stack keys or credentials are erased.
+The new Analog Value cluster likewise requires descriptor rediscovery after
+an upgrade. The persisted interval uses its own key, 0x0b502.
 
-Build and host protocol/metric checks passed. Generated checks cover all labels,
+Build and host protocol/metric/settings checks passed. Generated checks cover all labels,
 Description lengths/uniqueness, unchanged general-input endpoint assignments,
-and binding-table capacity. Flash verification and live RAM validation passed:
+binding-table capacity and the sole writable Analog Value attribute.
+The following live results are from the earlier PA1/PA0 firmware validation;
+the PD10/PD12 wiring and runtime setting still require live verification.
+Flash verification and live RAM validation passed:
 715 static labels/scales/constants checked and 130 measurement values decoded.
 After the restart, 32/32 BMS reads succeeded and 22 reports were APS-acknowledged
 with no delivery failures. Coordinator reconfiguration was underway (38 binding
