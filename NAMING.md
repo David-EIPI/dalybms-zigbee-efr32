@@ -68,8 +68,18 @@ an upgrade. The persisted interval uses its own key, 0x0b502.
 Build and host protocol/metric/settings checks passed. Generated checks cover all labels,
 Description lengths/uniqueness, unchanged general-input endpoint assignments,
 binding-table capacity and the sole writable Analog Value attribute.
-The following live results are from the earlier PA1/PA0 firmware validation;
-the PD10/PD12 wiring and runtime setting still require live verification.
+On 2026-10-05 the running firmware's routes were verified for PD10 TX / PD12 RX
+and the reversed PD12 TX / PD10 RX. Both received zero bytes from the awake BMS;
+the new serial connection still requires a wiring/transceiver check. The final
+image and live route use PD10 TX / PD12 RX, and image-table validation passes.
+The on-device network-write API accepted a 45-second interval, rejected
+fractional/NaN values and writes to measurements, and restored 45 seconds after
+reboot. It was then set back to 30 seconds and reboot restoration was verified.
+This exercised the actual firmware write path through SWD, rather than sending
+a coordinator Write Attributes packet. Flash usage is 185416 bytes text plus
+972 initialized data; BSS is 27500 bytes.
+
+The following measurement results are from the earlier PA1/PA0 validation.
 Flash verification and live RAM validation passed:
 715 static labels/scales/constants checked and 130 measurement values decoded.
 After the restart, 32/32 BMS reads succeeded and 22 reports were APS-acknowledged

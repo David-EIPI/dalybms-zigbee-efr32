@@ -62,6 +62,9 @@ static const struct app_config_block flash_config = {
     }
 };
 
+/* Read through a volatile view: host tools patch this const flash object. */
+#define live_config (*(const volatile struct app_config_block *)&flash_config)
+
 static bool config_valid;
 
 _Static_assert(sizeof(struct app_config_entry) == 36, "configuration entry layout");
@@ -96,7 +99,7 @@ static uint8_t serial_pin_id(uint8_t location, bool receive)
 }
 
 /* Calculate the same standard CRC-32 used by the image configuration tool. */
-static uint32_t config_crc32(const uint8_t *bytes, size_t length)
+static uint32_t config_crc32(const volatile uint8_t *bytes, size_t length)
 {
     uint32_t crc = 0xffffffffUL;
 
@@ -114,32 +117,32 @@ static uint32_t config_crc32(const uint8_t *bytes, size_t length)
 /* Validate the complete table before any patched value is accepted. */
 void app_config_init(void)
 {
-    config_valid = memcmp(flash_config.marker, CONFIG_MARKER,
-                          sizeof(flash_config.marker)) == 0
-                   && flash_config.version == CONFIG_VERSION
-                   && flash_config.size == sizeof(flash_config)
-                   && flash_config.count == APP_CONFIG_COUNT
-                   && config_crc32((const uint8_t *)&flash_config,
-                                   sizeof(flash_config)) == flash_config.crc32;
+    config_valid = memcmp((const void *)live_config.marker, CONFIG_MARKER,
+                          sizeof(live_config.marker)) == 0
+                   && live_config.version == CONFIG_VERSION
+                   && live_config.size == sizeof(live_config)
+                   && live_config.count == APP_CONFIG_COUNT
+                   && config_crc32((const volatile uint8_t *)&live_config,
+                                   sizeof(live_config)) == live_config.crc32;
     if (!config_valid)
         return;
     for (unsigned i = 0; i < APP_CONFIG_COUNT; i++) {
-        const struct app_config_entry *entry = &flash_config.entries[i];
+        const volatile struct app_config_entry *entry = &live_config.entries[i];
 
-        if (memcmp(entry->key, expected_keys[i], CONFIG_KEY_LENGTH) != 0
+        if (memcmp((const void *)entry->key, expected_keys[i], CONFIG_KEY_LENGTH) != 0
             || entry->value < entry->minimum || entry->value > entry->maximum) {
             config_valid = false;
             return;
         }
     }
-    uint32_t primary = flash_config.entries[APP_CONFIG_ZIGBEE_PRIMARY_MASK].value;
-    uint32_t secondary = flash_config.entries[APP_CONFIG_ZIGBEE_SECONDARY_MASK].value;
+    uint32_t primary = live_config.entries[APP_CONFIG_ZIGBEE_PRIMARY_MASK].value;
+    uint32_t secondary = live_config.entries[APP_CONFIG_ZIGBEE_SECONDARY_MASK].value;
 
     if (((primary | secondary) & ~ZIGBEE_CHANNEL_MASK) != 0
         || (primary | secondary) == 0)
         config_valid = false;
-    uint8_t tx = flash_config.entries[APP_CONFIG_SERIAL_TX_LOCATION].value;
-    uint8_t rx = flash_config.entries[APP_CONFIG_SERIAL_RX_LOCATION].value;
+    uint8_t tx = live_config.entries[APP_CONFIG_SERIAL_TX_LOCATION].value;
+    uint8_t rx = live_config.entries[APP_CONFIG_SERIAL_RX_LOCATION].value;
 
     if (serial_pin_id(tx, false) == serial_pin_id(rx, true))
         config_valid = false;
@@ -150,7 +153,7 @@ int32_t app_config_get(enum app_config_key key)
 {
     if ((unsigned)key >= APP_CONFIG_COUNT)
         return 0;
-    return config_valid ? flash_config.entries[key].value : defaults[key];
+    return config_valid ? live_config.entries[key].value : defaults[key];
 }
 
 /* Report whether the embedded configuration passed all integrity checks. */

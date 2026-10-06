@@ -4,6 +4,7 @@
 import importlib.util
 import pathlib
 import struct
+import subprocess
 import tempfile
 import unittest
 import zlib
@@ -43,6 +44,37 @@ def s3(address, data):
 
 
 class ConfigureImageTests(unittest.TestCase):
+    def test_optimized_firmware_reads_patched_table_and_rejects_bad_crc(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = pathlib.Path(directory) / "read_config"
+            subprocess.run([
+                "cc", "-Os", "-Wall", "-Wextra", "-Werror",
+                "-I", str(ROOT / "src"), str(ROOT / "tests/read_app_config.c"),
+                str(ROOT / "src/app_config.c"), "-o", str(executable)
+            ], check=True)
+            original = subprocess.check_output([str(executable)], text=True)
+            self.assertEqual(original.split()[0], "1")
+            image = TOOL.BinaryImage(executable.read_bytes())
+            location, block = image.find_config()
+            block.set("serial_rx_location", 0)
+            block.set("serial_tx_location", 20)
+            block.set("serial_rx_location", 17)
+            changes = {"bms_address": 7, "zigbee_primary_mask": 0x02000000,
+                       "zigbee_secondary_mask": 0, "sample_interval_s": 60,
+                       "zigbee_long_poll_ms": 4000,
+                       "network_loss_timeout_h": 48, "serial_timeout_ms": 1500}
+            for key, value in changes.items():
+                block.set(key, value)
+            image.replace(location, block.encode())
+            executable.write_bytes(image.encode())
+            actual = list(map(int, subprocess.check_output(
+                [str(executable)], text=True).split()))
+            self.assertEqual(actual, [1] + list(block.values().values()))
+            image.data[location + TOOL.CRC_OFFSET] ^= 1
+            executable.write_bytes(image.encode())
+            actual = subprocess.check_output([str(executable)], text=True).split()
+            self.assertEqual(actual, ["0"] + original.split()[1:])
+
     def test_binary_patch_updates_value_and_crc(self):
         image = TOOL.BinaryImage(b"prefix" + default_block() + b"suffix")
         location, block = image.find_config()

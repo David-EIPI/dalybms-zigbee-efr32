@@ -76,6 +76,13 @@ combination, channel masks, and CRC at every boot. It uses the compiled defaults
 for the entire table if validation fails, avoiding partial or unsafe settings
 after corruption.
 
+The configuration is read through a volatile view of the read-only flash table,
+so size optimization cannot replace its checksum or values with compile-time
+constants. A regression test patches and executes an optimized host build to
+verify all settings, then corrupts the checksum to verify fallback behavior.
+Use the current rebuilt images: older builds could reject a correctly patched
+table and silently use their compiled defaults.
+
 Patch an application image before converting it to a signed GBL or OTA file.
 Changing a signed GBL or OTA payload afterward invalidates its signature and
 container integrity checks. An OTA update replaces these image settings with
